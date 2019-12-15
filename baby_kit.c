@@ -190,7 +190,9 @@ static int __init mod_init(void)
 
 	// /proc/devices
 	if (alloc_chrdev_region(&major, 0, 1, filename) < 0) {
-		goto error;
+		goto error; // NOTE to anyone reading this: I think "goto"
+		// works well here. If you have a better idea,
+		// I'd like to hear it -- Zach
 	}
 	// /sys/class
 	if ((myclass = class_create(THIS_MODULE, filename)) == NULL) {
@@ -213,9 +215,7 @@ static int __init mod_init(void)
 	return 0;
 
 error:
-#ifdef DEBUG
 	DEBUG_PRINT("%s: failed to register device!\n", THIS_MODULE->name);
-#endif
 	cleanup(device_created);
 	return -1;
 }
