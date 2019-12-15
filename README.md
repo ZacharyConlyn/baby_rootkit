@@ -38,7 +38,6 @@ Unhide Baby_kit from `lsmod`
 
 ## TODO
 
- * Add "ifdef DEBUG" statements to clean up dmesg/printk spam from debug messages
  * Add "clear" command to scrub buffers of previous commands/statuses
  * Add functions to hide/unhide files and directories
  * Hide the C2 files in `/dev/`, `/proc/devices`, and `/sys/class`
