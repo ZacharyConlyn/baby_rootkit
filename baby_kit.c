@@ -13,6 +13,7 @@ MODULE_INFO(intree, "Y");
 MODULE_AUTHOR("Zach");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Baby rootkit");
+MODULE_VERSION("0.1");
 
 static char* filename = THIS_MODULE->name;
 static char* msg_ptr;
