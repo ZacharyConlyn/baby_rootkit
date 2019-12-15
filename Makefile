@@ -1,5 +1,5 @@
 obj-m := baby_kit.o
-CC = gcc -Wall
+CC = gcc -Wall --std=c99
 KDIR = /lib/modules/$(shell uname -r)/build
 PWD = $(shell pwd)
 

